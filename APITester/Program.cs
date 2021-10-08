@@ -15,7 +15,8 @@ namespace APITester
 
             var client = new HttpClient()
             {
-                BaseAddress = new Uri("http://localhost:26585/login")
+                //BaseAddress = new Uri("http://localhost:26585/login")
+                BaseAddress = new Uri("https://localhost:44346/login")
             };
             var sendObject = new
             {
@@ -34,10 +35,10 @@ namespace APITester
                 renter = 3,
                 manager = 2,
                 balance = 0.0,*/
-                //full_name = "Andrew Frank",
+                full_name = "Andrew Frank5",
                 username = "afrank",
-                password = "password",
-                //is_manager = true
+                password = "password5",
+                is_manager = true
             };
             var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(),Encoding.UTF8, "application/json");
             var request = new HttpRequestMessage()
