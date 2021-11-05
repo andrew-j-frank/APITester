@@ -9,7 +9,7 @@ namespace APITester
     class Program
     {
         private static string baseAddress = "https://localhost:44331/";
-        private static int i = 2;
+        private static int i = 1;
         static async Task Main(string[] args)
         {
             await Tests();
