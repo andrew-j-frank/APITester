@@ -13,6 +13,7 @@ namespace APITester
         static async Task Main(string[] args)
         {
             await Tests();
+            //await OneTimeTest();
         }
 
         private static async Task OneTimeTest()
@@ -24,8 +25,8 @@ namespace APITester
                 //BaseAddress = new Uri("http://localhost:26585/login")
                 //BaseAddress = new Uri("https://localhost:44346/property/manager/2")
                 //BaseAddress = new Uri("https://spikeexercise.azurewebsites.net/property")
-                //BaseAddress = new Uri("https://localhost:44331/signup")
-                BaseAddress = new Uri("https://movienightapi.azurewebsites.net/signup")
+                BaseAddress = new Uri("https://localhost:44331/user/1/join")
+                //BaseAddress = new Uri("https://movienightapi.azurewebsites.net/user/1/join")
             };
             var sendObject = new
             {
@@ -56,9 +57,12 @@ namespace APITester
                     description = "nice"
                 }*/
                 //full_name = "Andrew Frank2",
-                username = "afrank",
+                /*username = "afrank",
                 password = "password",
-                email = "afrank@testemailtesttest.com",
+                email = "afrank@testemailtesttest.com",*/
+                alias = "dsfgfds",
+                is_admin = false,
+                group_code = 5
                 //is_manager = false
                 //balance = 10.32
                 //property_id = 4
@@ -85,6 +89,7 @@ namespace APITester
             Console.WriteLine($"TestAddGroup: {await TestAddGroup()}");
             Console.WriteLine($"TestGetGroup: {await TestGetGroup()}");
             Console.WriteLine($"TestPatchGroup: {await TestPatchGroup()}");
+            Console.WriteLine($"TestPatchGroup2: {await TestPatchGroup2()}");
             Console.WriteLine($"TestGetGroup2: {await TestGetGroup2()}");
             Console.WriteLine($"TestGetGroupUsers: {await TestGetGroupUsers()}");
             Console.WriteLine($"TestPatchAlias: {await TestPatchAlias()}");
@@ -262,11 +267,35 @@ namespace APITester
         {
             var client = new HttpClient()
             {
-                BaseAddress = new Uri(baseAddress + $"group/{i}")
+                BaseAddress = new Uri(baseAddress + $"group/{i}/max_user_movies")
             };
             var sendObject = new
             {
                 max_user_movies = 4,
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Patch,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        private static async Task<bool> TestPatchGroup2()
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"group/{i}/group_name")
+            };
+            var sendObject = new
+            {
+                group_name = $"group_change{i}",
             };
             var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
             var request = new HttpRequestMessage()
@@ -303,7 +332,7 @@ namespace APITester
             {
                 return false;
             }
-            if ((await response.Content.ReadAsStringAsync()).Contains("\"max_user_movies\":4"))
+            if ((await response.Content.ReadAsStringAsync()).Contains("\"max_user_movies\":4") && (await response.Content.ReadAsStringAsync()).Contains($"\"group_name\":\"group_change{i}\""))
             {
                 return true;
             }
@@ -498,12 +527,13 @@ namespace APITester
         {
             var client = new HttpClient()
             {
-                BaseAddress = new Uri(baseAddress + $"user/1/join/{i}")
+                BaseAddress = new Uri(baseAddress + $"user/1/join")
             };
             var sendObject = new
             {
                 alias = $"alias2{i}",
                 is_admin = Convert.ToBoolean(i % 2),
+                group_code = i
             };
             var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
             var request = new HttpRequestMessage()
