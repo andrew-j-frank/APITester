@@ -3,17 +3,29 @@ using System;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using System.Net.Http.Headers;
+using System.Linq;
 
 namespace APITester
 {
     class Program
     {
         private static string baseAddress = "https://localhost:44331/";
-        private static int i = 1;
+
         static async Task Main(string[] args)
         {
             await Tests();
             //await OneTimeTest();
+        }
+
+        private static string RandomString(int length = 10)
+        {
+            const string chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+            var random = new Random();
+            var randomString = new string(Enumerable.Repeat(chars, length)
+                                                    .Select(s => s[random.Next(s.Length)]).ToArray());
+            return randomString;
         }
 
         private static async Task OneTimeTest()
@@ -82,33 +94,74 @@ namespace APITester
 
         private static async Task Tests()
         {
-            Console.WriteLine($"TestSignUp: {await TestSignUp()}");
-            Console.WriteLine($"TestSignUp2: {await TestSignUp2()}");
-            Console.WriteLine($"TestLogin: {await TestLogin()}");
-            Console.WriteLine($"TestLogin2: {await TestLogin2()}");
-            Console.WriteLine($"TestAddGroup: {await TestAddGroup()}");
-            Console.WriteLine($"TestGetGroup: {await TestGetGroup()}");
-            Console.WriteLine($"TestPatchGroup: {await TestPatchGroup()}");
-            Console.WriteLine($"TestPatchGroup2: {await TestPatchGroup2()}");
-            Console.WriteLine($"TestGetGroup2: {await TestGetGroup2()}");
-            Console.WriteLine($"TestGetGroupUsers: {await TestGetGroupUsers()}");
-            Console.WriteLine($"TestPatchAlias: {await TestPatchAlias()}");
-            Console.WriteLine($"TestGetGroupUsers2: {await TestGetGroupUsers2()}");
-            Console.WriteLine($"TestPatchAdmin: {await TestPatchAdmin()}");
-            Console.WriteLine($"TestGetGroupUsers3: {await TestGetGroupUsers3()}");
-            Console.WriteLine($"TestRemoveUserGroup: {await TestRemoveUserGroup()}");
-            Console.WriteLine($"TestGetGroupUsers4: {await TestGetGroupUsers4()}");
-            Console.WriteLine($"TestJoinGroup: {await TestJoinGroup()}");
-            Console.WriteLine($"TestGetGroupUsers5: {await TestGetGroupUsers5()}");
-            Console.WriteLine($"TestDeleteGroup: {await TestDeleteGroup()}");
-            Console.WriteLine($"TestGetGroupUsers6: {await TestGetGroupUsers6()}");
-            Console.WriteLine($"TestGetGroup3: {await TestGetGroup3()}");
+            string username_1 = RandomString();
+            string password_1 = RandomString();
+            string email_1 = RandomString() + "@gmail.com";
+            string token_1 = "";
+            int user_id_1 = -1;
+
+
+            string username_2 = RandomString();
+            string password_2 = RandomString();
+            string email_2 = RandomString() + "@gmail.com";
+            string token_2 = "";
+            int user_id_2 = -1;
+
+            int group_id_1 = -1;
+            string group_code_1 = "";
+
+            int group_id_2 = -1;
+            string group_code_2 = "";
+
+            Console.WriteLine($"TestSignUpNew: {await TestSignUpNew(username_1, password_1, email_1)}");
+            Console.WriteLine($"TestSignUpSecondUser: {await TestSignUpSecondUser(username_2, password_2, email_2)}");
+            Console.WriteLine($"TestSignUpExistingUser: {await TestSignUpExistingUser(username_1)}");
+            Console.WriteLine($"TestLoginValidUser1: {await TestLoginValidUser1(username_1, password_1, x => token_1 = x, y => user_id_1 = y)}");
+            Console.WriteLine($"TestLoginIncorrectUsername: {await TestLoginIncorrectUsername()}");
+            Console.WriteLine($"TestLoginIncorrectPassword: {await TestLoginIncorrectPassword(username_1)}");
+            Console.WriteLine($"TestLoginValidUser2: {await TestLoginValidUser2(username_2, password_2, x => token_2 = x, y => user_id_2 = y)}");
+            Console.WriteLine($"TestAddFirstGroup: {await TestAddFirstGroup(user_id_1, token_1, x => group_id_1 = x, y => group_code_1 = y)}");
+            Console.WriteLine($"TestAddSecondGroup: {await TestAddSecondGroup(user_id_1, token_1, x => group_id_2 = x, y => group_code_2 = y)}");
+            Console.WriteLine($"TestGetGroup: {await TestGetGroup(token_1, group_id_1, user_id_1, group_code_1)}");
+            Console.WriteLine($"TestPatchMaxUserMovies: {await TestPatchMaxUserMovies(token_1, group_id_1)}");
+            Console.WriteLine($"TestPatchGroupName: {await TestPatchGroupName(token_1, group_id_1)}");
+            Console.WriteLine($"TestJoinGroup: {await TestJoinGroup(token_2, user_id_2, group_code_1, group_id_1)}");
+            Console.WriteLine($"TestJoinGroupAgain: {await TestJoinGroupAgain(token_2, user_id_2, group_code_1)}");
+            Console.WriteLine($"TestGetGroupUsers: {await TestGetGroupUsers(token_1, group_id_1, user_id_1, user_id_2)}");
+            Console.WriteLine($"TestPatchGroupCode: {await TestPatchGroupCode(token_1, group_id_1, group_code_1, x => group_code_1 = x)}");
+            Console.WriteLine($"TestPatchAlias: {await TestPatchAlias(token_1, user_id_1, group_id_1)}");
+            Console.WriteLine($"TestPatchAdmin: {await TestPatchAdmin(token_2, user_id_2, group_id_1)}");
+            Console.WriteLine($"TestPostMovie: {await TestPostMovie(token_1, group_id_1, user_id_1)}");
+            Console.WriteLine($"TestPostMovieAgain: {await TestPostMovieAgain(token_1, group_id_1, user_id_1)}");
+            Console.WriteLine($"TestPostSecondMovie: {await TestPostSecondMovie(token_1, group_id_1, user_id_1)}");
+            Console.WriteLine($"TestPostMovieTooMany: {await TestPostMovieTooMany(token_1, group_id_1, user_id_1)}");
+            Console.WriteLine($"TestPostMovieNewUser: {await TestPostMovieNewUser(token_2, group_id_1, user_id_2)}");
+            Console.WriteLine($"TestPatchMovieRating: {await TestPatchMovieRating(token_1, group_id_1, user_id_1)}");
+            Console.WriteLine($"TestPatchMovieRatingInvalid1: {await TestPatchMovieRatingInvalid1(token_1, group_id_1, user_id_1)}");
+            Console.WriteLine($"TestPatchMovieRatingInvalid2: {await TestPatchMovieRatingInvalid2(token_1, group_id_1, user_id_1)}");
+            Console.WriteLine($"TestPatchMovieRatingInvalid3: {await TestPatchMovieRatingInvalid3(token_1, group_id_1, user_id_1)}");
+            Console.WriteLine($"TestGetMovieRatings: {await TestGetMovieRatings(token_1, group_id_1, user_id_1)}");
+            Console.WriteLine($"TestDeleteMovie1: {await TestDeleteMovie1(token_1, group_id_1)}");
+            Console.WriteLine($"TestDeleteMovie2: {await TestDeleteMovie2(token_1, group_id_1)}");
+            Console.WriteLine($"TestDeleteMovie3: {await TestDeleteMovie3(token_1, group_id_1)}");
+            Console.WriteLine($"TestDeleteMovieInvalid: {await TestDeleteMovieInvalid(token_1, group_id_1)}");
+            Console.WriteLine($"TestGetMovieRatingsNoMovies: {await TestGetMovieRatingsNoMovies(token_1, group_id_1, user_id_1)}");
+            Console.WriteLine($"TestGetUserGroups: {await TestGetUserGroups(token_1, user_id_1, group_id_1, group_id_2)}");
+            Console.WriteLine($"TestDeleteUserGroup1: {await TestDeleteUserGroup1(token_1, user_id_1, group_id_1)}");
+            Console.WriteLine($"TestGetUserGroup: {await TestGetUserGroup(token_1, user_id_1, group_id_1, group_id_2)}");
+            Console.WriteLine($"TestDeleteUserGroup2: {await TestDeleteUserGroup2(token_1, user_id_1, group_id_2)}");
+            Console.WriteLine($"TestGetUserGroupsNone: {await TestGetUserGroupsNone(token_1, user_id_1)}");
+            Console.WriteLine($"TestGetGroupUsersEmpty: {await TestGetGroupUsersEmpty(token_1, group_id_2)}");
+            Console.WriteLine($"TestDeleteGroup: {await TestDeleteGroup(token_1, group_id_2)}");
+            Console.WriteLine($"TestDeleteGroupInvalid: {await TestDeleteGroupInvalid(token_1)}");
+            Console.WriteLine($"TestGetUserGroupsWrongToken: {await TestGetUserGroupsWrongToken(token_1, user_id_2)}");
         }
 
-            //Console.WriteLine((int) response.StatusCode);
-            //Console.WriteLine(await response.Content.ReadAsStringAsync());
+        //Console.WriteLine((int) response.StatusCode);
+        //Console.WriteLine(await response.Content.ReadAsStringAsync());
 
-        private static async Task<bool> TestSignUp()
+        // A normal, valid signup
+        private static async Task<bool> TestSignUpNew(string username_1, string password_1, string email_1)
         {
             var client = new HttpClient()
             {
@@ -116,9 +169,9 @@ namespace APITester
             };
             var sendObject = new
             {
-                username = $"afrank{i}",
-                password = $"password{i}",
-                email = $"email@email.com{i}"
+                username = username_1,
+                password = password_1,
+                email = email_1
             };
             var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
             var request = new HttpRequestMessage()
@@ -134,7 +187,8 @@ namespace APITester
             return false;
         }
 
-        private static async Task<bool> TestSignUp2()
+        // Sign up another valid user
+        private static async Task<bool> TestSignUpSecondUser(string username_2, string password_2, string email_2)
         {
             var client = new HttpClient()
             {
@@ -142,34 +196,9 @@ namespace APITester
             };
             var sendObject = new
             {
-                username = $"afrank{i}",
-                password = $"password{i}",
-                email = $"email@email.com{i}"
-            };
-            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
-            var request = new HttpRequestMessage()
-            {
-                Method = HttpMethod.Post,
-                Content = content
-            };
-            var response = await client.SendAsync(request);
-            if (response.IsSuccessStatusCode)
-            {
-                return false;
-            }
-            return true;
-        }
-
-        private static async Task<bool> TestLogin()
-        {
-            var client = new HttpClient()
-            {
-                BaseAddress = new Uri(baseAddress + "login")
-            };
-            var sendObject = new
-            {
-                username = $"afrank{i}",
-                password = $"password{i}",
+                username = username_2,
+                password = password_2,
+                email = email_2
             };
             var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
             var request = new HttpRequestMessage()
@@ -185,16 +214,18 @@ namespace APITester
             return false;
         }
 
-        private static async Task<bool> TestLogin2()
+        // Try to signup a user with a username that already exists
+        private static async Task<bool> TestSignUpExistingUser(string username_1)
         {
             var client = new HttpClient()
             {
-                BaseAddress = new Uri(baseAddress + "login")
+                BaseAddress = new Uri(baseAddress + "signup")
             };
             var sendObject = new
             {
-                username = $"afrank45h454g5g45eg45{i}",
-                password = $"password{i}",
+                username = username_1,
+                password = RandomString(),
+                email = RandomString() + "@gmail.com"
             };
             var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
             var request = new HttpRequestMessage()
@@ -210,16 +241,137 @@ namespace APITester
             return true;
         }
 
-        private static async Task<bool> TestAddGroup()
+        // Try to login a user that exists
+        private static async Task<bool> TestLoginValidUser1(string username_1, string password_1, Action<string> token_setter, Action<int> user_id_setter)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + "login")
+            };
+            var sendObject = new
+            {
+                username = username_1,
+                password = password_1,
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Post,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+
+            // Get the token and user_id for this user
+            string response_string = await response.Content.ReadAsStringAsync();
+            string[] responses = response_string.ToString().Split(',');
+            token_setter(responses[responses.Length - 1].Substring(9, responses[responses.Length - 1].Length - 11));
+            user_id_setter(int.Parse(responses[0].Substring(11, responses[0].Length - 11)));
+            
+            if (response.IsSuccessStatusCode)
+            {
+                return true;
+            }
+            return false;
+        }
+
+        // Try to login with a username that does not exist
+        private static async Task<bool> TestLoginIncorrectUsername()
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + "login")
+            };
+            var sendObject = new
+            {
+                username = RandomString(),
+                password = RandomString(),
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Post,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        // Try to login a valid username with an incorrect password
+        private static async Task<bool> TestLoginIncorrectPassword(string username_1)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + "login")
+            };
+            var sendObject = new
+            {
+                username = username_1,
+                password = RandomString(),
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Post,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        // Try to login another user that exists
+        private static async Task<bool> TestLoginValidUser2(string username_2, string password_2, Action<string> token_setter, Action<int> user_id_setter)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + "login")
+            };
+            var sendObject = new
+            {
+                username = username_2,
+                password = password_2,
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Post,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+
+            // Get the token and user_id for this user
+            string response_string = await response.Content.ReadAsStringAsync();
+            string[] responses = response_string.ToString().Split(',');
+            token_setter(responses[responses.Length - 1].Substring(9, responses[responses.Length - 1].Length - 11));
+            user_id_setter(int.Parse(responses[0].Substring(11, responses[0].Length - 11)));
+
+            if (response.IsSuccessStatusCode)
+            {
+                return true;
+            }
+            return false;
+        }
+
+        // Creates a group
+        private static async Task<bool> TestAddFirstGroup(int user_id_1, string token_1, Action<int> group_id_setter, Action<string> group_code_setter)
         {
             var client = new HttpClient()
             {
                 BaseAddress = new Uri(baseAddress + "group")
             };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
             var sendObject = new
             {
-                group_name = $"group{i}",
-                created_by = 1,
+                group_name = RandomString(),
+                created_by = user_id_1,
+                alias = RandomString()
             };
             var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
             var request = new HttpRequestMessage()
@@ -232,15 +384,59 @@ namespace APITester
             {
                 return false;
             }
+
+            // Get the group code and id for this group
+            string response_string = await response.Content.ReadAsStringAsync();
+            string[] responses = response_string.ToString().Split(',');
+            group_id_setter(int.Parse(responses[2].Substring(11, responses[2].Length - 11)));
+            group_code_setter(responses[3].Substring(14, responses[3].Length - 15));
+
             return true;
         }
 
-        private static async Task<bool> TestGetGroup()
+        // Creates a second group
+        private static async Task<bool> TestAddSecondGroup(int user_id_1, string token_1, Action<int> group_id_setter, Action<string> group_code_setter)
         {
             var client = new HttpClient()
             {
-                BaseAddress = new Uri(baseAddress + $"group/{i}")
+                BaseAddress = new Uri(baseAddress + "group")
             };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            var sendObject = new
+            {
+                group_name = RandomString(),
+                created_by = user_id_1,
+                alias = RandomString()
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Post,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+
+            // Get the group code and id for this group
+            string response_string = await response.Content.ReadAsStringAsync();
+            string[] responses = response_string.ToString().Split(',');
+            group_id_setter(int.Parse(responses[2].Substring(11, responses[2].Length - 11)));
+            group_code_setter(responses[3].Substring(14, responses[3].Length - 15));
+
+            return true;
+        }
+
+        // Attempts to get a valid group
+        private static async Task<bool> TestGetGroup(string token_1, int group_id_1, int user_id_1, string group_code_1)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"group/{group_id_1}")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
             var sendObject = new
             {
 
@@ -256,22 +452,28 @@ namespace APITester
             {
                 return false;
             }
-            if((await response.Content.ReadAsStringAsync()).Contains($"group{i}"))
+            string response_string = await response.Content.ReadAsStringAsync();
+            if (response_string.Contains($"\"group_id\":{group_id_1}") &
+                response_string.Contains($"\"created_by\":{user_id_1}") &
+                response_string.Contains("\"max_user_movies\":5") &
+                response_string.Contains($"\"group_code\":\"{group_code_1}\""))
             {
                 return true;
             }
             return false;
         }
 
-        private static async Task<bool> TestPatchGroup()
+        // Change the max_user_movies of a group
+        private static async Task<bool> TestPatchMaxUserMovies(string token_1, int group_id_1)
         {
             var client = new HttpClient()
             {
-                BaseAddress = new Uri(baseAddress + $"group/{i}/max_user_movies")
+                BaseAddress = new Uri(baseAddress + $"group/{group_id_1}/max_user_movies")
             };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
             var sendObject = new
             {
-                max_user_movies = 4,
+                max_user_movies = 2,
             };
             var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
             var request = new HttpRequestMessage()
@@ -284,18 +486,27 @@ namespace APITester
             {
                 return false;
             }
-            return true;
+            string response_string = await response.Content.ReadAsStringAsync();
+            if (response_string.Contains("\"max_user_movies\":2"))
+            {
+                return true;
+            }
+
+            return false;
         }
 
-        private static async Task<bool> TestPatchGroup2()
+        // Changes the name of a group
+        private static async Task<bool> TestPatchGroupName(string token_1, int group_id_1)
         {
             var client = new HttpClient()
             {
-                BaseAddress = new Uri(baseAddress + $"group/{i}/group_name")
+                BaseAddress = new Uri(baseAddress + $"group/{group_id_1}/group_name")
             };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            string new_name = RandomString();
             var sendObject = new
             {
-                group_name = $"group_change{i}",
+                group_name = new_name
             };
             var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
             var request = new HttpRequestMessage()
@@ -308,23 +519,32 @@ namespace APITester
             {
                 return false;
             }
-            return true;
+            string response_string = await response.Content.ReadAsStringAsync();
+            if (response_string.Contains($"\"group_name\":\"{new_name}\""))
+            {
+                return true;
+            }
+            return false;
         }
 
-        private static async Task<bool> TestGetGroup2()
+        // Tests a second user joining an existing group
+        private static async Task<bool> TestJoinGroup(string token_2, int user_id_2, string group_code_1, int group_id_1)
         {
             var client = new HttpClient()
             {
-                BaseAddress = new Uri(baseAddress + $"group/{i}")
+                BaseAddress = new Uri(baseAddress + $"user/{user_id_2}/join")
             };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_2);
             var sendObject = new
             {
-
+                group_code = group_code_1,
+                alias = RandomString(),
+                is_admin = false
             };
             var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
             var request = new HttpRequestMessage()
             {
-                Method = HttpMethod.Get,
+                Method = HttpMethod.Post,
                 Content = content
             };
             var response = await client.SendAsync(request);
@@ -332,71 +552,51 @@ namespace APITester
             {
                 return false;
             }
-            if ((await response.Content.ReadAsStringAsync()).Contains("\"max_user_movies\":4") && (await response.Content.ReadAsStringAsync()).Contains($"\"group_name\":\"group_change{i}\""))
+            string response_string = await response.Content.ReadAsStringAsync();
+            if (response_string.Contains($"\"group_id\":{group_id_1}") &
+                response_string.Contains("\"is_admin\":false"))
             {
                 return true;
             }
             return false;
         }
 
-        private static async Task<bool> TestGetGroupUsers()
+        // Tests a user joining a group they already are a member of
+        private static async Task<bool> TestJoinGroupAgain(string token_2, int user_id_2, string group_code_1)
         {
             var client = new HttpClient()
             {
-                BaseAddress = new Uri(baseAddress + $"group/{i}/users")
+                BaseAddress = new Uri(baseAddress + $"user/{user_id_2}/join")
             };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_2);
             var sendObject = new
             {
-
+                group_code = group_code_1,
+                alias = RandomString(),
+                is_admin = false
             };
             var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
             var request = new HttpRequestMessage()
             {
-                Method = HttpMethod.Get,
+                Method = HttpMethod.Post,
                 Content = content
             };
             var response = await client.SendAsync(request);
-            if (!response.IsSuccessStatusCode)
-            {
-                return false;
-            }
-            if ((await response.Content.ReadAsStringAsync()).Contains($"\"user_id\":1") && (await response.Content.ReadAsStringAsync()).Contains($"\"is_admin\":true") && (await response.Content.ReadAsStringAsync()).Contains($"\"display_name\":\"afrank1\""))
-            {
-                return true;
-            }
-            return false;
-        }
-
-        private static async Task<bool> TestPatchAlias()
-        {
-            var client = new HttpClient()
-            {
-                BaseAddress = new Uri(baseAddress + $"user/1/{i}/alias")
-            };
-            var sendObject = new
-            {
-                alias = $"alias{i}"
-            };
-            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
-            var request = new HttpRequestMessage()
-            {
-                Method = HttpMethod.Patch,
-                Content = content
-            };
-            var response = await client.SendAsync(request);
-            if (!response.IsSuccessStatusCode)
+            if (response.IsSuccessStatusCode)
             {
                 return false;
             }
             return true;
         }
 
-        private static async Task<bool> TestGetGroupUsers2()
+        // Attempts to get a list of all users in the given group
+        private static async Task<bool> TestGetGroupUsers(string token_1, int group_id_1, int user_id_1, int user_id_2)
         {
             var client = new HttpClient()
             {
-                BaseAddress = new Uri(baseAddress + $"group/{i}/users")
+                BaseAddress = new Uri(baseAddress + $"group/{group_id_1}/users")
             };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
             var sendObject = new
             {
 
@@ -412,71 +612,25 @@ namespace APITester
             {
                 return false;
             }
-            if ((await response.Content.ReadAsStringAsync()).Contains($"\"user_id\":1") && (await response.Content.ReadAsStringAsync()).Contains($"\"display_name\":\"alias{i}\""))
+            string response_string = await response.Content.ReadAsStringAsync();
+            if (response_string.Contains($"\"group_id\":{group_id_1}") &
+                response_string.Contains($"\"user_id\":{user_id_1}") &
+                response_string.Contains($"\"user_id\":{user_id_2}")
+                )
             {
                 return true;
             }
             return false;
         }
 
-        private static async Task<bool> TestPatchAdmin()
+        // Changes the code of a group
+        private static async Task<bool> TestPatchGroupCode(string token_1, int group_id_1, string group_code_1, Action<string> group_code_setter)
         {
             var client = new HttpClient()
             {
-                BaseAddress = new Uri(baseAddress + $"user/1/{i}/admin")
+                BaseAddress = new Uri(baseAddress + $"group/{group_id_1}/code")
             };
-            var sendObject = new
-            {
-                is_admin = Convert.ToBoolean((i+1)%2)
-            };
-            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
-            var request = new HttpRequestMessage()
-            {
-                Method = HttpMethod.Patch,
-                Content = content
-            };
-            var response = await client.SendAsync(request);
-            if (!response.IsSuccessStatusCode)
-            {
-                return false;
-            }
-            return true;
-        }
-
-        private static async Task<bool> TestGetGroupUsers3()
-        {
-            var client = new HttpClient()
-            {
-                BaseAddress = new Uri(baseAddress + $"group/{i}/users")
-            };
-            var sendObject = new
-            {
-
-            };
-            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
-            var request = new HttpRequestMessage()
-            {
-                Method = HttpMethod.Get,
-                Content = content
-            };
-            var response = await client.SendAsync(request);
-            if (!response.IsSuccessStatusCode)
-            {
-                return false;
-            }
-            if ((await response.Content.ReadAsStringAsync()).Contains($"\"user_id\":1") && (await response.Content.ReadAsStringAsync()).Contains($"\"is_admin\":{Convert.ToBoolean((i + 1) % 2).ToString().ToLower()}"))
-            {
-                return true;
-            }
-            return false;
-        }
-
-        private static async Task<bool> TestRemoveUserGroup()
-        {
-            var client = new HttpClient()
-            {
-                BaseAddress = new Uri(baseAddress + $"user/1/{i}")
-            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
             var sendObject = new
             {
                 
@@ -484,7 +638,7 @@ namespace APITester
             var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
             var request = new HttpRequestMessage()
             {
-                Method = HttpMethod.Delete,
+                Method = HttpMethod.Patch,
                 Content = content
             };
             var response = await client.SendAsync(request);
@@ -492,23 +646,36 @@ namespace APITester
             {
                 return false;
             }
+
+            // Get the group code for this group
+            string response_string = await response.Content.ReadAsStringAsync();
+            string[] responses = response_string.ToString().Split(',');
+            group_code_setter(responses[4].Substring(14, responses[3].Length - 13));
+
+            // Make sure that the group code has changed
+            if (response_string.Contains($"\"group_code\":\"{group_code_1}\""))
+            {
+                return false;
+            }
             return true;
         }
 
-        private static async Task<bool> TestGetGroupUsers4()
+        private static async Task<bool> TestPatchAlias(string token_1, int user_id_1, int group_id_1)
         {
             var client = new HttpClient()
             {
-                BaseAddress = new Uri(baseAddress + $"group/{i}/users")
+                BaseAddress = new Uri(baseAddress + $"user/{user_id_1}/{group_id_1}/alias")
             };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            string new_alias = RandomString();
             var sendObject = new
             {
-
+                alias = new_alias
             };
             var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
             var request = new HttpRequestMessage()
             {
-                Method = HttpMethod.Get,
+                Method = HttpMethod.Patch,
                 Content = content
             };
             var response = await client.SendAsync(request);
@@ -516,24 +683,59 @@ namespace APITester
             {
                 return false;
             }
-            if ((await response.Content.ReadAsStringAsync()).Contains($"\"user_id\":1"))
+            // Make sure that the alias has changed
+            string response_string = await response.Content.ReadAsStringAsync();
+            if (response_string.Contains($"\"display_name\":\"{new_alias}\""))
             {
-                return false;
+                return true;
             }
-            return true;
+            return false;
         }
 
-        private static async Task<bool> TestJoinGroup()
+        // Test changing a user's admin status in a group
+        private static async Task<bool> TestPatchAdmin(string token_2, int user_id_2, int group_id_1)
         {
             var client = new HttpClient()
             {
-                BaseAddress = new Uri(baseAddress + $"user/1/join")
+                BaseAddress = new Uri(baseAddress + $"user/{user_id_2}/{group_id_1}/admin")
             };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_2);
             var sendObject = new
             {
-                alias = $"alias2{i}",
-                is_admin = Convert.ToBoolean(i % 2),
-                group_code = i
+                is_admin = true
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Patch,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            // Make sure that the admin status has changed
+            string response_string = await response.Content.ReadAsStringAsync();
+            if (response_string.Contains("\"is_admin\":true"))
+            {
+                return true;
+            }
+            return false;
+        }
+
+        // Test adding a movie to a group
+        private static async Task<bool> TestPostMovie(string token_1, int group_id_1, int user_id_1)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"group/{group_id_1}/movie")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            var sendObject = new
+            {
+                tmdb_movie_id = 1,
+                added_by = user_id_1
             };
             var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
             var request = new HttpRequestMessage()
@@ -546,15 +748,271 @@ namespace APITester
             {
                 return false;
             }
-            return true;
+            // Make sure that the return values are correct
+            string response_string = await response.Content.ReadAsStringAsync();
+            if (response_string.Contains($"\"group_id\":{group_id_1}") &
+                response_string.Contains("\"tmdb_movie_id\":1") &
+                response_string.Contains($"\"added_by\":{user_id_1}")
+                )
+            {
+                return true;
+            }
+            return false;
         }
 
-        private static async Task<bool> TestGetGroupUsers5()
+        // Test adding the same movie to a group
+        private static async Task<bool> TestPostMovieAgain(string token_1, int group_id_1, int user_id_1)
         {
             var client = new HttpClient()
             {
-                BaseAddress = new Uri(baseAddress + $"group/{i}/users")
+                BaseAddress = new Uri(baseAddress + $"group/{group_id_1}/movie")
             };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            var sendObject = new
+            {
+                tmdb_movie_id = 1,
+                added_by = user_id_1
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Post,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        // Test adding another movie to the group
+        private static async Task<bool> TestPostSecondMovie(string token_1, int group_id_1, int user_id_1)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"group/{group_id_1}/movie")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            var sendObject = new
+            {
+                tmdb_movie_id = 2,
+                added_by = user_id_1
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Post,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            // Make sure that the return values are correct
+            string response_string = await response.Content.ReadAsStringAsync();
+            if (response_string.Contains($"\"group_id\":{group_id_1}") &
+                response_string.Contains("\"tmdb_movie_id\":2") &
+                response_string.Contains($"\"added_by\":{user_id_1}")
+                )
+            {
+                return true;
+            }
+            return false;
+        }
+
+        // Test adding a movie when max_user movies has been reached
+        private static async Task<bool> TestPostMovieTooMany(string token_1, int group_id_1, int user_id_1)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"group/{group_id_1}/movie")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            var sendObject = new
+            {
+                tmdb_movie_id = 3,
+                added_by = user_id_1
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Post,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            return true;
+        }
+
+
+        // Test adding a movie from another user
+        private static async Task<bool> TestPostMovieNewUser(string token_2, int group_id_1, int user_id_2)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"group/{group_id_1}/movie")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_2);
+            var sendObject = new
+            {
+                tmdb_movie_id = 3,
+                added_by = user_id_2
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Post,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            // Make sure that the return values are correct
+            string response_string = await response.Content.ReadAsStringAsync();
+            if (response_string.Contains($"\"group_id\":{group_id_1}") &
+                response_string.Contains("\"tmdb_movie_id\":3") &
+                response_string.Contains($"\"added_by\":{user_id_2}")
+                )
+            {
+                return true;
+            }
+            return false;
+        }
+
+        // Test changing the rating of a movie
+        private static async Task<bool> TestPatchMovieRating(string token_1, int group_id_1, int user_id_1)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"user/{user_id_1}/{group_id_1}/rating")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            var sendObject = new
+            {
+                tmdb_movie_id = 3,
+                user_rating = 10
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Patch,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            // Make sure that the return values are correct
+            string response_string = await response.Content.ReadAsStringAsync();
+            if (response_string.Contains($"\"group_id\":{group_id_1}") &
+                response_string.Contains($"\"user_id\":{user_id_1}") &
+                response_string.Contains("\"tmdb_movie_id\":3") &
+                response_string.Contains("\"user_rating\":10")
+                )
+            {
+                return true;
+            }
+            return false;
+        }
+
+        // Test changing the rating of a movie that doesn't exist
+        private static async Task<bool> TestPatchMovieRatingInvalid1(string token_1, int group_id_1, int user_id_1)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"user/{user_id_1}/{group_id_1}/rating")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            var sendObject = new
+            {
+                tmdb_movie_id = 5,
+                user_rating = 10
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Patch,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        // Test leaving a rating above 10
+        private static async Task<bool> TestPatchMovieRatingInvalid2(string token_1, int group_id_1, int user_id_1)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"user/{user_id_1}/{group_id_1}/rating")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            var sendObject = new
+            {
+                tmdb_movie_id = 3,
+                user_rating = 11
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Patch,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        // Test leaving a rating below 0
+        private static async Task<bool> TestPatchMovieRatingInvalid3(string token_1, int group_id_1, int user_id_1)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"user/{user_id_1}/{group_id_1}/rating")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            var sendObject = new
+            {
+                tmdb_movie_id = 3,
+                user_rating = -1
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Patch,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        // Test getting the reviews for a group
+        private static async Task<bool> TestGetMovieRatings(string token_1, int group_id_1, int user_id_1)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"group/{group_id_1}/movies/{user_id_1}")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
             var sendObject = new
             {
 
@@ -570,19 +1028,30 @@ namespace APITester
             {
                 return false;
             }
-            if ((await response.Content.ReadAsStringAsync()).Contains($"\"user_id\":1") && (await response.Content.ReadAsStringAsync()).Contains($"\"display_name\":\"alias2{i}\"") && (await response.Content.ReadAsStringAsync()).Contains($"\"is_admin\":{Convert.ToBoolean(i % 2).ToString().ToLower()}"))
+            // Make sure that the return values are correct
+            string response_string = await response.Content.ReadAsStringAsync();
+            if (response_string.Contains($"\"group_id\":{group_id_1}") &
+                response_string.Contains("\"tmdb_movie_id\":1") &
+                response_string.Contains("\"tmdb_movie_id\":2") &
+                response_string.Contains("\"tmdb_movie_id\":3") &
+                response_string.Contains("\"user_rating\":5") &
+                response_string.Contains("\"user_rating\":10") &
+                response_string.Contains("\"avg_user_rating\":7.5")
+                )
             {
                 return true;
             }
             return false;
         }
 
-        private static async Task<bool> TestDeleteGroup()
+        // Delete first movie from the group
+        private static async Task<bool> TestDeleteMovie1(string token_1, int group_id_1)
         {
             var client = new HttpClient()
             {
-                BaseAddress = new Uri(baseAddress + $"group/{i}")
+                BaseAddress = new Uri(baseAddress + $"group/{group_id_1}/movie/1")
             };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
             var sendObject = new
             {
 
@@ -601,12 +1070,92 @@ namespace APITester
             return true;
         }
 
-        private static async Task<bool> TestGetGroupUsers6()
+        // Delete second movie from the group
+        private static async Task<bool> TestDeleteMovie2(string token_1, int group_id_1)
         {
             var client = new HttpClient()
             {
-                BaseAddress = new Uri(baseAddress + $"group/{i}/users")
+                BaseAddress = new Uri(baseAddress + $"group/{group_id_1}/movie/2")
             };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            var sendObject = new
+            {
+
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Delete,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        // Delete third movie from the group
+        private static async Task<bool> TestDeleteMovie3(string token_1, int group_id_1)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"group/{group_id_1}/movie/3")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            var sendObject = new
+            {
+
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Delete,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        // Try to delete a movie not in the group
+        private static async Task<bool> TestDeleteMovieInvalid(string token_1, int group_id_1)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"group/{group_id_1}/movie/10")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            var sendObject = new
+            {
+
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Delete,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        // Get ratings when there are no movies
+        private static async Task<bool> TestGetMovieRatingsNoMovies(string token_1, int group_id_1, int user_id_1)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"group/{group_id_1}/movies/{user_id_1}")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
             var sendObject = new
             {
 
@@ -620,21 +1169,25 @@ namespace APITester
             var response = await client.SendAsync(request);
             if (!response.IsSuccessStatusCode)
             {
-                return true;
+                return false;
             }
-            if ((await response.Content.ReadAsStringAsync()) == "[]")
+            // Make sure that the returned list is empty
+            string response_string = await response.Content.ReadAsStringAsync();
+            if (response_string.Contains("[]"))
             {
                 return true;
             }
             return false;
         }
 
-        private static async Task<bool> TestGetGroup3()
+        // Get the groups of a user
+        private static async Task<bool> TestGetUserGroups(string token_1, int user_id_1, int group_id_1, int group_id_2)
         {
             var client = new HttpClient()
             {
-                BaseAddress = new Uri(baseAddress + $"group/{i}")
+                BaseAddress = new Uri(baseAddress + $"user/{user_id_1}/groups")
             };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
             var sendObject = new
             {
 
@@ -648,9 +1201,245 @@ namespace APITester
             var response = await client.SendAsync(request);
             if (!response.IsSuccessStatusCode)
             {
+                return false;
+            }
+            // Make sure that the returned list is empty
+            string response_string = await response.Content.ReadAsStringAsync();
+            if (response_string.Contains($"\"group_id\":{group_id_1}") &
+                response_string.Contains($"\"group_id\":{group_id_2}")
+                )
+            {
                 return true;
             }
             return false;
         }
+
+        // Delete one of the first user's groups
+        private static async Task<bool> TestDeleteUserGroup1(string token_1, int user_id_1, int group_id_1)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"user/{user_id_1}/{group_id_1}")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            var sendObject = new
+            {
+
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Delete,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        // Get the last group of a user
+        private static async Task<bool> TestGetUserGroup(string token_1, int user_id_1, int group_id_1, int group_id_2)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"user/{user_id_1}/groups")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            var sendObject = new
+            {
+
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Get,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            // Make sure that the returned list is empty
+            string response_string = await response.Content.ReadAsStringAsync();
+            if (!response_string.Contains($"\"group_id\":{group_id_1}") &
+                response_string.Contains($"\"group_id\":{group_id_2}")
+                )
+            {
+                return true;
+            }
+            return false;
+        }
+
+        // Delete the last of a user's groups
+        private static async Task<bool> TestDeleteUserGroup2(string token_1, int user_id_1, int group_id_2)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"user/{user_id_1}/{group_id_2}")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            var sendObject = new
+            {
+
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Delete,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        // Get the groups of a user who has no groups
+        private static async Task<bool> TestGetUserGroupsNone(string token_1, int user_id_1)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"user/{user_id_1}/groups")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            var sendObject = new
+            {
+
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Get,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            // Make sure that the returned list is empty
+            string response_string = await response.Content.ReadAsStringAsync();
+            if (response_string.Contains("[]"))
+            {
+                return true;
+            }
+            return false;
+        }
+
+        // Test getting a group's users on an empty group
+        private static async Task<bool> TestGetGroupUsersEmpty(string token_1, int group_id_2)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"group/{group_id_2}/users")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            var sendObject = new
+            {
+
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Get,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            string response_string = await response.Content.ReadAsStringAsync();
+            if (response_string.Contains("[]"))
+            {
+                return true;
+            }
+            return false;
+        }
+
+        // Test deleting group
+        private static async Task<bool> TestDeleteGroup(string token_1, int group_id_2)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"group/{group_id_2}")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            var sendObject = new
+            {
+
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Delete,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        // Test deleting group that doesn't exist
+        private static async Task<bool> TestDeleteGroupInvalid(string token_1)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"group/{1000000}")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            var sendObject = new
+            {
+
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Delete,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        // Attempt to access a user's information using the token of another user
+        private static async Task<bool> TestGetUserGroupsWrongToken(string token_1, int user_id_2)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"user/{user_id_2}/groups")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            var sendObject = new
+            {
+
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Get,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            return true;
+        }
+
     }
 }
