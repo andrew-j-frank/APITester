@@ -5,6 +5,8 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Net.Http.Headers;
 using System.Linq;
+using System.Text.RegularExpressions;
+using System.Collections.Generic;
 
 namespace APITester
 {
@@ -14,7 +16,7 @@ namespace APITester
 
         static async Task Main(string[] args)
         {
-            await Tests();
+         await Tests();
             //await OneTimeTest();
         }
 
@@ -113,6 +115,8 @@ namespace APITester
             int group_id_2 = -1;
             string group_code_2 = "";
 
+            int event_id_1 = -1;
+
             Console.WriteLine($"TestSignUpNew: {await TestSignUpNew(username_1, password_1, email_1)}");
             Console.WriteLine($"TestSignUpSecondUser: {await TestSignUpSecondUser(username_2, password_2, email_2)}");
             Console.WriteLine($"TestSignUpExistingUser: {await TestSignUpExistingUser(username_1)}");
@@ -141,6 +145,19 @@ namespace APITester
             Console.WriteLine($"TestPatchMovieRatingInvalid2: {await TestPatchMovieRatingInvalid2(token_1, group_id_1, user_id_1)}");
             Console.WriteLine($"TestPatchMovieRatingInvalid3: {await TestPatchMovieRatingInvalid3(token_1, group_id_1, user_id_1)}");
             Console.WriteLine($"TestGetMovieRatings: {await TestGetMovieRatings(token_1, group_id_1, user_id_1)}");
+            Console.WriteLine($"TestCreateEvent: {await TestCreateEvent(token_1, group_id_1, user_id_1, x => event_id_1 = x)}");
+            Console.WriteLine($"TestEventRSVP: {await TestEventRSVP(token_1, event_id_1, user_id_1)}");
+            Console.WriteLine($"TestEventRSVPSecondUser: {await TestEventRSVPSecondUser(token_2, event_id_1, user_id_1, user_id_2)}");
+            Console.WriteLine($"TestEventPatchRSVP1: {await TestEventPatchRSVP1(token_1, event_id_1, user_id_1)}");
+            Console.WriteLine($"TestEventRSVPGet: {await TestEventRSVPGet(token_1, event_id_1, user_id_1, user_id_2)}");
+            Console.WriteLine($"TestEventPatchRSVP2: {await TestEventPatchRSVP2(token_1, event_id_1, user_id_1)}");
+            Console.WriteLine($"TestEventPatchVotingMode: {await TestEventPatchVotingMode(token_1, event_id_1)}");
+            Console.WriteLine($"TestGetEvent: {await TestGetEvent(token_1, event_id_1)}");
+            Console.WriteLine($"TestEventAddMovies: {await TestEventAddMovies(token_1, event_id_1)}");
+            Console.WriteLine($"TestEventChangeRatings: {await TestEventChangeRatings(token_1, event_id_1, user_id_1)}");
+            Console.WriteLine($"TestEventGetUserRatings: {await TestEventGetUserRatings(token_1, event_id_1, user_id_1)}");
+            Console.WriteLine($"TestEventGetAvgRatings: {await TestEventGetAvgRatings(token_1, event_id_1)}");
+            Console.WriteLine($"TestDeleteEvent: {await TestDeleteEvent(token_1, event_id_1)}");
             Console.WriteLine($"TestDeleteMovie1: {await TestDeleteMovie1(token_1, group_id_1)}");
             Console.WriteLine($"TestDeleteMovie2: {await TestDeleteMovie2(token_1, group_id_1)}");
             Console.WriteLine($"TestDeleteMovie3: {await TestDeleteMovie3(token_1, group_id_1)}");
@@ -1037,6 +1054,488 @@ namespace APITester
                 response_string.Contains("\"user_rating\":5") &
                 response_string.Contains("\"user_rating\":10") &
                 response_string.Contains("\"avg_user_rating\":7.5")
+                )
+            {
+                return true;
+            }
+            return false;
+        }
+
+        // Test creating an event
+        private static async Task<bool> TestCreateEvent(string token_1, int group_id_1, int user_id_1, Action<int> event_id_setter)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"event")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            String loc = RandomString();
+            var sendObject = new
+            {
+                group_id = group_id_1,
+                start_time = DateTime.Now,
+                location = loc,
+                genres = new List<int> { 5, 3, 2 },
+                organized_by = 1,
+                voting_mode = 1,
+                services = new List<int> { 8, 4, 7 }
+        };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Post,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            // Make sure that the return values are correct
+            string response_string = await response.Content.ReadAsStringAsync();
+            if (response_string.Contains($"\"group_id\":{group_id_1}") &
+                response_string.Contains($"\"location\":\"{loc}\"") &
+                response_string.Contains("\"genres\":[5,3,2]") &
+                response_string.Contains("\"organized_by\":1") &
+                response_string.Contains("\"voting_mode\":1") &
+                response_string.Contains("\"services\":[8,4,7]")
+                )
+            {
+                event_id_setter(int.Parse(Regex.Match(response_string, @"\d+").Value));
+                return true;
+            }
+            return false;
+        }
+
+        // Test RSVP'ing a user to an event
+        private static async Task<bool> TestEventRSVP(string token_1, int event_id_1, int user_id_1)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"event/rsvp")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            var sendObject = new
+            {
+                event_id = event_id_1,
+                user_id = user_id_1,
+                is_coming = true
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Post,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            // Make sure that the return values are correct
+
+            string response_string = await response.Content.ReadAsStringAsync();
+            if (response_string.Contains($"\"event_id\":{event_id_1}") &
+                response_string.Contains($"\"user_id\":{user_id_1}") &
+                response_string.Contains("\"is_coming\":true")
+                )
+            {
+                return true;
+            }
+            return false;
+        }
+
+        // Test RSVP'ing a second user to an event
+        private static async Task<bool> TestEventRSVPSecondUser(string token_2, int event_id_1, int user_id_1, int user_id_2)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"event/rsvp")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_2);
+            var sendObject = new
+            {
+                event_id = event_id_1,
+                user_id = user_id_2,
+                is_coming = true
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Post,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            // Make sure that the return values are correct
+
+            string response_string = await response.Content.ReadAsStringAsync();
+            if (response_string.Contains($"\"event_id\":{event_id_1}") &
+                response_string.Contains($"\"user_id\":{user_id_1}") &
+                response_string.Contains("\"is_coming\":true") &
+                response_string.Contains($"\"user_id\":{user_id_2}") &
+                !response_string.Contains("\"is_coming\":false")
+                )
+            {
+                return true;
+            }
+            return false;
+        }
+
+        // Test un-RSVP'ing a user to an event
+        private static async Task<bool> TestEventPatchRSVP1(string token_1, int event_id_1, int user_id_1)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"event/{event_id_1}/rsvp/{user_id_1}")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            var sendObject = new
+            {
+                is_coming = false
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Patch,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            // Make sure that the return values are correct
+
+            string response_string = await response.Content.ReadAsStringAsync();
+            if (response_string.Contains($"\"event_id\":{event_id_1}") &
+                response_string.Contains($"\"user_id\":{user_id_1}") &
+                response_string.Contains("\"is_coming\":true") &
+                response_string.Contains("\"is_coming\":false")
+                )
+            {
+                return true;
+            }
+            return false;
+        }
+
+        // Test get the RSVP status of an event
+        private static async Task<bool> TestEventRSVPGet(string token_1, int event_id_1, int user_id_1, int user_id_2)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"event/{event_id_1}/rsvp")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            var sendObject = new {};
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Get,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            // Make sure that the return values are correct
+
+            string response_string = await response.Content.ReadAsStringAsync();
+            if (response_string.Contains($"\"event_id\":{event_id_1}") &
+                response_string.Contains($"\"user_id\":{user_id_1}") &
+                response_string.Contains($"\"user_id\":{user_id_2}") &
+                response_string.Contains("\"is_coming\":true") &
+                response_string.Contains("\"is_coming\":false")
+                )
+            {
+                return true;
+            }
+            return false;
+        }
+
+        // Test re-RSVP'ing a user to an event
+        private static async Task<bool> TestEventPatchRSVP2(string token_1, int event_id_1, int user_id_1)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"event/{event_id_1}/rsvp/{user_id_1}")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            var sendObject = new
+            {
+                is_coming = true
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Patch,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            // Make sure that the return values are correct
+
+            string response_string = await response.Content.ReadAsStringAsync();
+            if (response_string.Contains($"\"event_id\":{event_id_1}") &
+                response_string.Contains($"\"user_id\":{user_id_1}") &
+                response_string.Contains("\"is_coming\":true") &
+                !response_string.Contains("\"is_coming\":false")
+                )
+            {
+                return true;
+            }
+            return false;
+        }
+
+        // Test changing the voting mode of an event
+        private static async Task<bool> TestEventPatchVotingMode(string token_1, int event_id_1)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"event/{event_id_1}")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            var sendObject = new
+            {
+                voting_mode = 2
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Patch,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            // Make sure that the return values are correct
+
+            string response_string = await response.Content.ReadAsStringAsync();
+            if (response_string.Contains($"\"event_id\":{event_id_1}") &
+                response_string.Contains("\"voting_mode\":2")
+                )
+            {
+                return true;
+            }
+            return false;
+        }
+
+        // Test changing the voting mode of an event
+        private static async Task<bool> TestGetEvent(string token_1, int event_id_1)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"event/{event_id_1}")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            var sendObject = new {};
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Get,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            // Make sure that the return values are correct
+
+            string response_string = await response.Content.ReadAsStringAsync();
+            if (response_string.Contains($"\"event_id\":{event_id_1}") &
+                response_string.Contains("\"voting_mode\":2") &
+                response_string.Contains("\"services\":[4,7,8]") &
+                response_string.Contains("\"genres\":[2,3,5]")
+                )
+            {
+                return true;
+            }
+            return false;
+        }
+
+        // Test adding movies to an event
+        private static async Task<bool> TestEventAddMovies(string token_1, int event_id_1)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"event/{event_id_1}/movies")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            List<int> mov_ids = new List<int>{ 1, 2, 3 };
+            var sendObject = new
+            {
+                movie_ids = mov_ids
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Post,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            // Make sure that the return values are correct
+
+            string response_string = await response.Content.ReadAsStringAsync();
+            if (response_string.Contains($"\"event_id\":{event_id_1}") &
+                response_string.Contains("\"tmdb_movie_id\":1") &
+                response_string.Contains("\"tmdb_movie_id\":2") &
+                response_string.Contains("\"tmdb_movie_id\":3")
+                )
+            {
+                return true;
+            }
+            return false;
+        }
+
+        // Test changing a user's ratings
+        private static async Task<bool> TestEventChangeRatings(string token_1, int event_id_1, int user_id_1)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"event/rating")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            
+            var sendObject = new
+            {
+                event_id = event_id_1,
+                user_id = user_id_1,
+                tmdb_movie_id = 1,
+                rating = 3
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Patch,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            // Make sure that the return values are correct
+
+            string response_string = await response.Content.ReadAsStringAsync();
+            if (response_string.Contains($"\"event_id\":{event_id_1}") &
+                response_string.Contains("\"rating\":2") &
+                response_string.Contains("\"rating\":3") &
+                response_string.Contains($"\"user_id\":{user_id_1}")
+                )
+            {
+                return true;
+            }
+            return false;
+        }
+
+        // Test getting a user's ratings
+        private static async Task<bool> TestEventGetUserRatings(string token_1, int event_id_1, int user_id_1)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"event/{event_id_1}/movies/{user_id_1}")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+
+            var sendObject = new {};
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Get,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            // Make sure that the return values are correct
+
+            string response_string = await response.Content.ReadAsStringAsync();
+            if (response_string.Contains("\"rating\":2") &
+                response_string.Contains("\"rating\":3")
+                )
+            {
+                return true;
+            }
+            return false;
+        }
+
+        // Test getting an event's average movie ratings
+        private static async Task<bool> TestEventGetAvgRatings(string token_1, int event_id_1)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"event/{event_id_1}/rating")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+
+            var sendObject = new { };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Get,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            // Make sure that the return values are correct
+
+            string response_string = await response.Content.ReadAsStringAsync();
+            if (response_string.Contains("\"avg_rating\":2.5") &
+                response_string.Contains("\"avg_rating\":2") &
+                response_string.Contains("\"tmdb_movie_id\":1") &
+                response_string.Contains("\"tmdb_movie_id\":2") &
+                response_string.Contains("\"tmdb_movie_id\":3")
+                )
+            {
+                return true;
+            }
+            return false;
+        }
+
+        // Test getting an event's average movie ratings
+        private static async Task<bool> TestDeleteEvent (string token_1, int event_id_1)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"event/{event_id_1}")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+
+            var sendObject = new { };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Delete,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            // Make sure that the return values are correct
+
+            string response_string = await response.Content.ReadAsStringAsync();
+            if (response_string.Contains($"\"event_id\":{event_id_1}")
                 )
             {
                 return true;
