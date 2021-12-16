@@ -1389,7 +1389,7 @@ namespace APITester
             int[] mov_ids = { 1, 2, 3 };
             var sendObject = new
             {
-                movie_ids = mov_ids
+                tmdb_movie_ids = mov_ids
             };
             var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
             var request = new HttpRequestMessage()
