@@ -1371,7 +1371,7 @@ namespace APITester
                 BaseAddress = new Uri(baseAddress + $"event/{event_id_1}/movies")
             };
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
-            List<int> mov_ids = new List<int>{ 1, 2, 3 };
+            int[] mov_ids = { 1, 2, 3 };
             var sendObject = new
             {
                 movie_ids = mov_ids
