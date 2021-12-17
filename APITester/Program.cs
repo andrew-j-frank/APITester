@@ -158,6 +158,7 @@ namespace APITester
             Console.WriteLine($"TestEventRSVPGet: {await TestEventRSVPGet(token_1, event_id_1, user_id_1, user_id_2)}");
             Console.WriteLine($"TestEventPatchRSVP2: {await TestEventPatchRSVP2(token_1, event_id_1, user_id_1)}");
             Console.WriteLine($"TestEventPatchVotingMode: {await TestEventPatchVotingMode(token_1, event_id_1)}");
+            Console.WriteLine($"TestEventPatchMovie: {await TestEventPatchMovie(token_1, event_id_1)}");
             Console.WriteLine($"TestGetEvent: {await TestGetEvent(token_1, event_id_1)}");
             Console.WriteLine($"TestEventAddMovies: {await TestEventAddMovies(token_1, event_id_1)}");
             Console.WriteLine($"TestEventChangeRatings: {await TestEventChangeRatings(token_1, event_id_1, user_id_1)}");
@@ -1337,6 +1338,41 @@ namespace APITester
             string response_string = await response.Content.ReadAsStringAsync();
             if (response_string.Contains($"\"event_id\":{event_id_1}") &
                 response_string.Contains("\"voting_mode\":2")
+                )
+            {
+                return true;
+            }
+            return false;
+        }
+
+        // Test changing the voting mode of an event
+        private static async Task<bool> TestEventPatchMovie(string token_1, int event_id_1)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"event/{event_id_1}/movie")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            var sendObject = new
+            {
+                tmdb_movie_id = 1324
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Patch,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            // Make sure that the return values are correct
+
+            string response_string = await response.Content.ReadAsStringAsync();
+            if (response_string.Contains($"\"event_id\":{event_id_1}") &
+                response_string.Contains("\"tmdb_movie_id\":1324")
                 )
             {
                 return true;
