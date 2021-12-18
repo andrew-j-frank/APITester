@@ -161,11 +161,15 @@ namespace APITester
             Console.WriteLine($"TestEventPatchMovie: {await TestEventPatchMovie(token_1, event_id_1)}");
             Console.WriteLine($"TestGetEvent: {await TestGetEvent(token_1, event_id_1)}");
             Console.WriteLine($"TestEventAddMovies: {await TestEventAddMovies(token_1, event_id_1)}");
+            Console.WriteLine($"TestEventDeleteMovies: {await TestEventDeleteMovies(token_1, event_id_1)}");
+            Console.WriteLine($"TestEventAddMovies2: {await TestEventAddMovies2(token_1, event_id_1)}");
+
+
             Console.WriteLine($"TestEventChangeRatings: {await TestEventChangeRatings(token_1, event_id_1, user_id_1)}");
             Console.WriteLine($"TestEventGetUserRatings: {await TestEventGetUserRatings(token_1, event_id_1, user_id_1)}");
             Console.WriteLine($"TestEventGetAvgRatings: {await TestEventGetAvgRatings(token_1, event_id_1)}");
 
-            Console.WriteLine($"TestSignUpSecondUser: {await TestSignUpThirdUser(username_3, password_3, email_3)}");
+            Console.WriteLine($"TestSignUpThirdUser: {await TestSignUpThirdUser(username_3, password_3, email_3)}");
             Console.WriteLine($"TestLoginValidUser3: {await TestLoginValidUser3(username_3, password_3, x => token_3 = x, y => user_id_3 = y)}");
             Console.WriteLine($"TestJoinGroupThirdUser: {await TestJoinGroupThirdUser(token_3, user_id_3, group_code_1, group_id_1)}");
             Console.WriteLine($"TestEventRSVPThirdUser: {await TestEventRSVPThirdUser(token_3, event_id_1, user_id_3)}");
@@ -1329,20 +1333,11 @@ namespace APITester
                 Content = content
             };
             var response = await client.SendAsync(request);
-            if (!response.IsSuccessStatusCode)
+            if (response.IsSuccessStatusCode)
             {
                 return false;
             }
-            // Make sure that the return values are correct
-
-            string response_string = await response.Content.ReadAsStringAsync();
-            if (response_string.Contains($"\"event_id\":{event_id_1}") &
-                response_string.Contains("\"voting_mode\":2")
-                )
-            {
-                return true;
-            }
-            return false;
+            return true;
         }
 
         // Test changing the voting mode of an event
@@ -1404,7 +1399,7 @@ namespace APITester
 
             string response_string = await response.Content.ReadAsStringAsync();
             if (response_string.Contains($"\"event_id\":{event_id_1}") &
-                response_string.Contains("\"voting_mode\":2") &
+                response_string.Contains("\"voting_mode\":1") &
                 response_string.Contains("\"services\":[4,7,8]") &
                 response_string.Contains("\"genres\":[2,3,5]")
                 )
@@ -1416,6 +1411,78 @@ namespace APITester
 
         // Test adding movies to an event
         private static async Task<bool> TestEventAddMovies(string token_1, int event_id_1)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"event/{event_id_1}/movies")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            int[] mov_ids = { 10, 11, 12 };
+            var sendObject = new
+            {
+                tmdb_movie_ids = mov_ids
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Post,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            // Make sure that the return values are correct
+
+            string response_string = await response.Content.ReadAsStringAsync();
+            if (response_string.Contains($"\"event_id\":{event_id_1}") &
+                response_string.Contains("\"tmdb_movie_id\":10") &
+                response_string.Contains("\"tmdb_movie_id\":11") &
+                response_string.Contains("\"tmdb_movie_id\":12")
+                )
+            {
+                return true;
+            }
+            return false;
+        }
+
+        // Test deleting movies of an event
+        private static async Task<bool> TestEventDeleteMovies(string token_1, int event_id_1)
+        {
+            var client = new HttpClient()
+            {
+                BaseAddress = new Uri(baseAddress + $"event/{event_id_1}/movies")
+            };
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token_1);
+            var sendObject = new {};
+            var content = new StringContent(JsonConvert.SerializeObject(sendObject).ToString(), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Delete,
+                Content = content
+            };
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+            // Make sure that the return values are correct
+
+            string response_string = await response.Content.ReadAsStringAsync();
+            if (response_string.Contains($"\"event_id\":{event_id_1}") &
+                response_string.Contains("\"tmdb_movie_id\":10") &
+                response_string.Contains("\"tmdb_movie_id\":11") &
+                response_string.Contains("\"tmdb_movie_id\":12")
+                )
+            {
+                return true;
+            }
+            return false;
+        }
+
+        // Test adding movies to an event
+        private static async Task<bool> TestEventAddMovies2(string token_1, int event_id_1)
         {
             var client = new HttpClient()
             {
